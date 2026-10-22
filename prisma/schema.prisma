@@ -1,0 +1,57 @@
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      Role     @default(ATTENDEE)
+  createdAt DateTime @default(now())
+
+  eventsOrganized Event[]  @relation("OrganizedEvents")
+  tickets         Ticket[]
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  location    String
+  capacity    Int
+
+  organizerId String
+  organizer   User     @relation("OrganizedEvents", fields: [organizerId], references: [id], onDelete: Cascade)
+
+  tickets     Ticket[]
+}
+
+model Ticket {
+  id        String       @id @default(uuid())
+  status    TicketStatus @default(CONFIRMED)
+  createdAt DateTime     @default(now())
+
+  eventId   String
+  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  ORGANIZER
+  ATTENDEE
+}
+
+enum TicketStatus {
+  CONFIRMED
+  CANCELLED
+}

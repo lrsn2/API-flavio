@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Gestão de Eventos</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 20px; max-width: 1100px; margin: 0 auto; }
+    
+    header { text-align: center; margin-bottom: 30px; padding: 20px 0; }
+    header h1 { color: var(--primary); font-size: 2.2rem; }
+    header p { color: var(--text-muted); font-size: 1rem; margin-top: 5px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .card { background: var(--card-bg); border-radius: 12px; padding: 24px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    .card h2 { font-size: 1.3rem; margin-bottom: 15px; color: var(--text); border-bottom: 2px solid var(--bg); padding-bottom: 8px; }
+
+    form { display: flex; flex-direction: column; gap: 12px; }
+    label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+    input, select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; outline: none; }
+    input:focus, select:focus { border-color: var(--primary); }
+
+    button { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    button:hover { background: var(--primary-hover); }
+
+    .list { margin-top: 15px; display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto; }
+    .list-item { background: var(--bg); padding: 10px; border-radius: 6px; font-size: 0.9rem; border-left: 4px solid var(--primary); }
+    .list-item small { display: block; color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🎪 Gestão de Eventos</h1>
+    <p>Painel de Controle da API de Eventos & Ingressos</p>
+  </header>
+
+  <div class="grid">
+    <!-- Bloco de Usuários -->
+    <div class="card">
+      <h2>👤 Criar Usuário</h2>
+      <form id="form-user">
+        <div>
+          <label>Nome</label>
+          <input type="text" id="user-name" required placeholder="Ex: Maria Silva">
+        </div>
+        <div>
+          <label>E-mail</label>
+          <input type="email" id="user-email" required placeholder="maria@email.com">
+        </div>
+        <div>
+          <label>Função</label>
+          <select id="user-role">
+            <option value="ATTENDEE">Participante</option>
+            <option value="ORGANIZER">Organizador</option>
+          </select>
+        </div>
+        <button type="submit">Cadastrar Usuário</button>
+      </form>
+
+      <h2 style="margin-top: 25px;">Lista de Usuários</h2>
+      <div id="users-list" class="list">Carregando...</div>
+    </div>
+
+    <!-- Bloco de Eventos -->
+    <div class="card">
+      <h2>📅 Criar Evento</h2>
+      <form id="form-event">
+        <div>
+          <label>Título do Evento</label>
+          <input type="text" id="event-title" required placeholder="Ex: Feira do Livro">
+        </div>
+        <div>
+          <label>Descrição</label>
+          <input type="text" id="event-desc" required placeholder="Ex: Feira de livros e palestras">
+        </div>
+        <div>
+          <label>Localização</label>
+          <input type="text" id="event-location" required placeholder="Ex: Auditório Principal">
+        </div>
+        <div>
+          <label>Capacidade (Pessoas)</label>
+          <input type="number" id="event-capacity" required placeholder="Ex: 100" min="1">
+        </div>
+        <div>
+          <label>Data e Hora</label>
+          <input type="datetime-local" id="event-date" required>
+        </div>
+        <div>
+          <label>ID do Organizador</label>
+          <input type="text" id="event-organizer" required placeholder="Cole o ID completo do organizador">
+        </div>
+        <button type="submit">Cadastrar Evento</button>
+      </form>
+
+      <h2 style="margin-top: 25px;">Lista de Eventos</h2>
+      <div id="events-list" class="list">Carregando...</div>
+    </div>
+
+    <!-- Bloco de Ingressos -->
+    <div class="card">
+      <h2>🎟️ Emitir Ingresso</h2>
+      <form id="form-ticket">
+        <div>
+          <label>ID do Evento</label>
+          <input type="text" id="ticket-event" required placeholder="Cole o ID do Evento">
+        </div>
+        <div>
+          <label>ID do Participante</label>
+          <input type="text" id="ticket-user" required placeholder="Cole o ID do Usuário">
+        </div>
+        <button type="submit">Gerar Ingresso</button>
+      </form>
+
+      <h2 style="margin-top: 25px;">Lista de Ingressos</h2>
+      <div id="tickets-list" class="list">Carregando...</div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3000';
+
+    // --- CARREGAR DADOS ---
+    async function loadUsers() {
+      try {
+        const res = await fetch(`${API}/users`);
+        const users = await res.json();
+        const container = document.getElementById('users-list');
+        if (!Array.isArray(users) || users.length === 0) { 
+          container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Nenhum usuário cadastrado.</p>'; 
+          return; 
+        }
+        container.innerHTML = users.map(u => `
+          <div class="list-item">
+            <strong>${u.name}</strong> (${u.role})<br>
+            <small>${u.email}</small>
+            <small style="color:var(--primary); font-weight:600; user-select: all;">ID: ${u.id}</small>
+          </div>
+        `).join('');
+      } catch (err) {
+        document.getElementById('users-list').innerText = 'Erro ao carregar usuários.';
+      }
+    }
+
+    async function loadEvents() {
+      try {
+        const res = await fetch(`${API}/events`);
+        const events = await res.json();
+        const container = document.getElementById('events-list');
+        if (!Array.isArray(events) || events.length === 0) { 
+          container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Nenhum evento cadastrado.</p>'; 
+          return; 
+        }
+        container.innerHTML = events.map(e => `
+          <div class="list-item">
+            <strong>${e.title}</strong> (${e.location || 'Sem local'})<br>
+            <small>${e.date ? new Date(e.date).toLocaleString('pt-BR') : 'Sem data'}</small>
+            <small style="color:var(--primary); font-weight:600; user-select: all;">ID: ${e.id}</small>
+          </div>
+        `).join('');
+      } catch (err) {
+        document.getElementById('events-list').innerText = 'Erro ao carregar eventos.';
+      }
+    }
+
+    async function loadTickets(userId) {
+      const container = document.getElementById('tickets-list');
+      if (!userId) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Insira o ID do participante acima para emitir ou ver os ingressos dele.</p>';
+        return;
+      }
+      try {
+        // Usa a rota listByUser do controller (/tickets/user/:userId)
+        const res = await fetch(`${API}/tickets/user/${userId}`);
+        const tickets = await res.json();
+        if (!Array.isArray(tickets) || tickets.length === 0) { 
+          container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Nenhum ingresso encontrado para este participante.</p>'; 
+          return; 
+        }
+        container.innerHTML = tickets.map(t => `
+          <div class="list-item">
+            <strong>Ingresso #${t.id ? t.id.substring(0, 8) : '---'}...</strong><br>
+            <small>Evento: ${t.event ? t.event.title : t.eventId}</small>
+            <small style="color:var(--primary); font-weight:600;">ID: ${t.id}</small>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerText = 'Erro ao carregar ingressos.';
+      }
+    }
+
+    // 1. Cadastrar Usuário
+    document.getElementById('form-user').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch(`${API}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('user-name').value,
+            email: document.getElementById('user-email').value,
+            role: document.getElementById('user-role').value
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        e.target.reset();
+        loadUsers();
+      } catch (err) {
+        alert('Erro ao criar usuário: ' + err.message);
+      }
+    });
+
+    // 2. Cadastrar Evento
+    document.getElementById('form-event').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const rawDate = document.getElementById('event-date').value;
+        const dateISO = new Date(rawDate).toISOString();
+
+        const res = await fetch(`${API}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: document.getElementById('event-title').value,
+            description: document.getElementById('event-desc').value,
+            location: document.getElementById('event-location').value,
+            capacity: Number(document.getElementById('event-capacity').value),
+            date: dateISO,
+            organizerId: document.getElementById('event-organizer').value.trim()
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Erro ao cadastrar evento');
+        }
+
+        e.target.reset();
+        loadEvents();
+      } catch (err) {
+        alert('Erro ao criar evento: ' + err.message);
+      }
+    });
+
+    // 3. Gerar Ingresso
+    document.getElementById('form-ticket').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const eventId = document.getElementById('ticket-event').value.trim();
+      const userId = document.getElementById('ticket-user').value.trim();
+
+      try {
+        const res = await fetch(`${API}/tickets`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId, userId })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Erro ao emitir ingresso');
+        }
+
+        alert('Ingresso emitido com sucesso!');
+        loadTickets(userId);
+      } catch (err) {
+        alert('Erro ao emitir ingresso: ' + err.message);
+      }
+    });
+
+    // Atualiza a lista de ingressos ao digitar o ID do usuário
+    document.getElementById('ticket-user').addEventListener('input', (e) => {
+      const userId = e.target.value.trim();
+      if (userId.length > 20) {
+        loadTickets(userId);
+      }
+    });
+
+    loadUsers();
+    loadEvents();
+    loadTickets();
+  </script>
